@@ -2,11 +2,23 @@ var express = require('express');
 
 var app = express(); 
 
+//create objects for library functions
 var fortune = require('./lib/fortune.js');
+var weather = require('./lib/weather.js');
 
 //setup the handlebars view engine
-var handlebars = require('express-handlebars')
-    .create({ defaultLayout:'main' });
+var handlebars = require('express-handlebars').create({ 
+    defaultLayout:'main',
+    helpers: {
+        section: function(name, options){
+            if(!this._sections) this._sections= {};
+            this._sections[name] = options.fn(this);
+            return null;
+        }
+    }
+});
+    
+
 app.engine('handlebars', handlebars.engine);
 app.set('view engine', 'handlebars');
 
@@ -22,7 +34,8 @@ app.use(function(req,res,next) {
 
 app.use(function(req, res, next) {
     if(!res.locals.partials) res.locals.partials = {};
-    res.locals.partials.weatherContext = getWeatherData();
+    var locations = weather.getWeatherData(); 
+    res.locals.partials.weatherContext = locations;
     next();
 });
 
@@ -35,6 +48,10 @@ app.get('/about', function(req, res) {
             fortune : fortune.getFortune(),
             pageTestScript: '/qa/tests-about.js' 
     });
+});
+
+app.get('/jquery', function(req, res) {
+    res.render('jquery-test');
 });
 
 app.get('/headers', function(req,res) {
@@ -69,26 +86,5 @@ app.listen(app.get('port'), function() {
     console.log( 'Express started: ' + app.get('port') +'; press Ctrl-c to terminate.' );
 });
 
- 
-function getWeatherData(){
-    return {
-        locations: [
-            {
-                name: 'Portland',
-                forecastUrl: 'http://www.wunderground.com/US/OR/Portland.html',
-                iconUrl: 'http://icons-ak.wxug.com/i/c/k/cloud.gif',
-                weather: 'Overcast',
-                temp: '54.1 F (12.3 C)',
-            },
-            {
-                name: 'Bend',
-                forecartUrl: 'http://www.wunderground.com/US/OR/Bend.html',
-                iconUrl: 'http://icons-ak.wxug.com/i/c/k/partlycloud.gif',
-                weather: 'Partly Cloudy',
-                temp: '55.0 F (12.8 C)',
-            },
-        ],
-    };
-}
 
 
