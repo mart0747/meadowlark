@@ -17,7 +17,9 @@ var handlebars = require('express-handlebars').create({
         }
     }
 });
-    
+
+//use formidable for file uploads
+var formidable = require('formidable');
 
 app.engine('handlebars', handlebars.engine);
 app.set('view engine', 'handlebars');
@@ -69,6 +71,27 @@ app.post('/process', function(req, res) {
     }
 });
 
+app.get('/contest/vacation-photo', function(req,res){
+    var now = new Date();
+    var month = now.getMonth();
+    var year = now.getFullYear();
+    console.log('Year: ' + year + '\n' + 'Month: ' + month); 
+    res.render('contest/vacation-photo', 
+               { year: year, month: month} ); 
+});
+
+app.post('/contest/vacation-photo/:year/:month', function(req, res){
+    var form = new formidable.IncomingForm();
+    form.parse(req, function(err, fields, files){
+        if(err) return res.redirect(303, '/error');
+        console.log('received fields: ');
+        console.log(fields);
+        console.log('received files');
+        console.log(files);
+        res.redirect(303, '/thank-you');
+    });
+});
+                
 app.get('/jquery', function(req, res) {
     res.render('jquery-test');
 });
@@ -90,6 +113,8 @@ app.get('/tours/request-group-rate', function(req, res) {
 
 //custom 404 page
 app.use(function(req,res){
+    console.log(req.url);
+    console.log(req.method);
     res.status(404);
     res.render('404');
 });
