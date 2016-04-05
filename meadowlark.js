@@ -5,6 +5,7 @@ var app = express();
 //create objects for library functions
 var fortune = require('./lib/fortune.js');
 var weather = require('./lib/weather.js');
+var credentials = require('./credentials.js');
 
 //setup the handlebars view engine
 var handlebars = require('express-handlebars').create({ 
@@ -21,6 +22,9 @@ var handlebars = require('express-handlebars').create({
 //use formidable for file uploads
 var formidable = require('formidable');
 
+//from http://blog.gerv.net/2011/05/html5_email_address_regexp/
+var VALID_EMAIL_REGEX = new RegExp(/^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?)*$/);
+
 app.engine('handlebars', handlebars.engine);
 app.set('view engine', 'handlebars');
 
@@ -28,6 +32,11 @@ app.set('port', process.env.PORT || 3000);
 
 app.use(express.static(__dirname + '/public'));
 app.use(require('body-parser').urlencoded({extended: true}));
+app.use(require('cookie-parser')(credentials.cookieSecret));
+app.use(require('express-session')( {
+    resave: false,
+    saveUninitialized: false,
+    secret: credentials.cookieSecret }));
 
 app.use(function(req,res,next) {
     res.locals.showTests = app.get('env') !== 'production' && 
@@ -42,8 +51,26 @@ app.use(function(req, res, next) {
     next();
 });
 
+app.use(function(req, res, next) { 
+    //if there is a flash message, transfer it to the context, then clear it
+    res.locals.flash = req.session.flash;
+    delete req.session.flash; 
+    next();
+}); 
+
+// for now, we're mocking NewsletterSignup:
+function NewsletterSignup(){
+}
+NewsletterSignup.prototype.save = function(cb){
+	cb();
+};
+
+//
+//routes from here to the end of file.
+//
 app.get('/', function(req, res) {
-   res.render('home');
+    res.render('home');
+    res.cookie('monster', 'nom nom');
 });
 
 app.get('/thank-you', function(req,res) {
@@ -61,6 +88,54 @@ app.get('/newsletter', function(req, res) {
     res.render('newsletter', {csrf : 'CSRF token goes here' });
 });
 
+app.post('newsletter', function(req, res) {
+    var name = req.body.name || '', email = req.body.email || '';
+    
+    if(!email.match(VALID_EMAIL_REGEX)) {
+        if(req.xhr) 
+            return res.json({ error: 'Invalid name email address.' });
+        
+        req.session.flash = {
+            type: 'danger',
+            intro: 'Validation Error!',
+            message: 'The email address you entered was not valid',
+        };
+        
+        return res.redirect(303, 'newsletter/archive');
+    }
+    
+    new NewsletterSignup({ name: name, email: email }).save(function(err){
+        if(err) {
+            if(req.xhr) 
+                return res.json({ error: 'Database error.' });
+            
+            req.session.flash = {
+                type: 'danger',
+                intro: 'Database error!',
+                message: 'There was a database error; please try again later.',
+            };
+            
+            return res.redirect(303, 'newsletter/archive');
+        }
+        
+        if(req.xhr) 
+            return res.json({ success: true });
+        
+        req.session.flash = {
+            type: 'success',
+            intro: 'Thank you!',
+            message: 'You have been signed up for the newsletter.',
+        };
+        
+        return res.redirect(303, 'newsletter/archive');
+    });
+                                                            
+});
+
+app.get('newsletter/archive', function(req,res) {
+   res.render('archive'); 
+});
+    
 app.post('/process', function(req, res) {
     if(req.xhr || req.accepts('json,html')==='json'){
         res.send({ success: true });
