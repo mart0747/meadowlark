@@ -19,6 +19,32 @@ var handlebars = require('express-handlebars').create({
     }
 });
 
+var dbURI = 'mongodb://localhost';
+var mongoose = require('mongoose');
+var opts = {
+    server: {
+        socketOptions : {keepalive : 1}
+    }
+};
+
+mongoose.connect(dbURI, opts);
+
+// CONNECTION EVENTS
+// When successfully connected
+mongoose.connection.on('connected', function () {  
+    console.log('Mongoose default connection open to ' + dbURI);
+}); 
+
+// If the connection throws an error
+mongoose.connection.on('error',function (err) {  
+    console.log('Mongoose default connection error: ' + err);
+}); 
+
+// When the connection is disconnected
+mongoose.connection.on('disconnected', function () {  
+    console.log('Mongoose default connection disconnected'); 
+});
+
 //use formidable for file uploads
 var formidable = require('formidable');
 
@@ -88,7 +114,7 @@ app.get('/newsletter', function(req, res) {
     res.render('newsletter', {csrf : 'CSRF token goes here' });
 });
 
-app.post('newsletter', function(req, res) {
+app.post('/newsletter', function(req, res) {
     var name = req.body.name || '', email = req.body.email || '';
     
     if(!email.match(VALID_EMAIL_REGEX)) {
