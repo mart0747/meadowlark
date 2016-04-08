@@ -6,6 +6,7 @@ var app = express();
 var fortune = require('./lib/fortune.js');
 var weather = require('./lib/weather.js');
 var credentials = require('./credentials.js');
+var Vacation = require('./models/vacation.js');
 
 //setup the handlebars view engine
 var handlebars = require('express-handlebars').create({ 
@@ -43,6 +44,28 @@ mongoose.connection.on('error',function (err) {
 // When the connection is disconnected
 mongoose.connection.on('disconnected', function () {  
     console.log('Mongoose default connection disconnected'); 
+});
+
+Vacation.find(function(err, vacations){
+    if(err) 
+        return console.error(err);
+    
+    if(vacations.length) 
+        return;
+    
+    new Vacation({
+        name: 'Hood River Day Trip',
+        slug: 'hood-river-day-trip',
+        category: 'Day Trip',
+        sku: 'HR199',
+        description: 'Spend a day sailing on the Columbia',
+        priceInCents: 9995,
+        tags: ['day trip', 'hood river', 'sailing', 'breweries'],
+        inSeason: true,
+        maximumGuests: 16,
+        available: true,
+        packagesSold: 0,
+    }).save();
 });
 
 //use formidable for file uploads
@@ -210,6 +233,26 @@ app.get('/tours/hood-river', function(req, res) {
 
 app.get('/tours/request-group-rate', function(req, res) {
     res.render('tours/request-group-rate');
+});
+
+
+app.get('/vacations', function(req,res){
+    Vacation.find({ available:true }, function(err, vacations){
+        console.log(vacations);
+        var context = { 
+            vacations: vacations.map(function(vacation){
+                return {
+                    sku: vacation.sku,
+                    name: vacation.name,
+                    description: vacation.description,
+                    price: vacation.getDisplayPrice(),
+                    inSeason: vacation.inSeason,
+                }
+            })
+        };
+        
+        res.render('vacations', context);
+    });
 });
 
 //custom 404 page
