@@ -7,6 +7,7 @@ var fortune = require('./lib/fortune.js');
 var weather = require('./lib/weather.js');
 var credentials = require('./credentials.js');
 var Vacation = require('./models/vacation.js');
+var cartValidation = require('./lib/cartValidation.js');
 
 //setup the handlebars view engine
 var handlebars = require('express-handlebars').create({ 
@@ -106,6 +107,9 @@ app.use(function(req, res, next) {
     delete req.session.flash; 
     next();
 }); 
+
+app.use(cartValidation.checkWaivers);
+app.use(cartValidation.checkGuestCounts);
 
 // for now, we're mocking NewsletterSignup:
 function NewsletterSignup(){
@@ -273,6 +277,4 @@ app.use(function(err, req, res, next) {
 app.listen(app.get('port'), function() {
     console.log( 'Express started: ' + app.get('port') +'; press Ctrl-c to terminate.' );
 });
-
-
 
