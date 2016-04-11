@@ -10,7 +10,6 @@ var cartValidation = require('./lib/cartValidation.js');
 var nodemailer = require('nodemailer'); 
 var formidable = require('formidable'); //for file uploads
 
-
 //setup the handlebars view engine
 var handlebars = require('express-handlebars').create({ 
     defaultLayout:'main',
@@ -24,7 +23,7 @@ var handlebars = require('express-handlebars').create({
 });
 
 //initialize the DB and DB Connection
-var dbURI = 'mongodb://localhost';
+var dbURI = 'mongodb://localhost/meadowlark';
 var mongoose = require('mongoose');
 var opts = {
     server: {
@@ -54,6 +53,8 @@ Vacation.find(function(err, vacations){
     if(err) 
         return console.error(err);
     
+    
+    console.log(vacations.length + ' : number of vacations in DB');
     if(vacations.length) 
         return;
     
@@ -319,7 +320,6 @@ app.get('/tours/request-group-rate', function(req, res) {
     res.render('tours/request-group-rate');
 });
 
-
 app.get('/vacations', function(req,res){
     Vacation.find({ available:true }, function(err, vacations){
         console.log(vacations);
@@ -373,7 +373,6 @@ app.post('/cart/checkout', function(req, res){
     res.render('cart-thank-you', { cart: cart });
                                                 
 }); 
-
 
 //custom 404 page
 app.use(function(req,res){
