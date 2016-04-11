@@ -24,6 +24,7 @@
     "restler": "^3.4.0"
   },
   "scripts": {
+    "start": "node meadolark.js",
     "test": "mocha -u tdd -R spec qa/tests-api.js"
   },
   "repository": {
