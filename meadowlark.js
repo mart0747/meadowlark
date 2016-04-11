@@ -1,5 +1,4 @@
 var express = require('express');
-
 var app = express(); 
 
 //create objects for library functions
@@ -8,6 +7,9 @@ var weather = require('./lib/weather.js');
 var credentials = require('./credentials.js');
 var Vacation = require('./models/vacation.js');
 var cartValidation = require('./lib/cartValidation.js');
+var nodemailer = require('nodemailer'); 
+var formidable = require('formidable'); //for file uploads
+
 
 //setup the handlebars view engine
 var handlebars = require('express-handlebars').create({ 
@@ -21,6 +23,7 @@ var handlebars = require('express-handlebars').create({
     }
 });
 
+//initialize the DB and DB Connection
 var dbURI = 'mongodb://localhost';
 var mongoose = require('mongoose');
 var opts = {
@@ -69,16 +72,25 @@ Vacation.find(function(err, vacations){
     }).save();
 });
 
-//use formidable for file uploads
-var formidable = require('formidable');
-
 //from http://blog.gerv.net/2011/05/html5_email_address_regexp/
 var VALID_EMAIL_REGEX = new RegExp(/^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?)*$/);
 
+var mailTransport = nodemailer.createTransport('SMTP', {
+    service: 'Gmail', 
+    auth: {
+        user: credentials.gmail.user,
+        pass: credentials.gmail.password,
+    }
+});
+
+//--now that everything is ready to go, initialize the app---
 app.engine('handlebars', handlebars.engine);
 app.set('view engine', 'handlebars');
 
 app.set('port', process.env.PORT || 3000);
+
+app.use(require('cors')()); 
+app.use('/api', require('cors')()); 
 
 app.use(express.static(__dirname + '/public'));
 app.use(require('body-parser').urlencoded({extended: true}));
@@ -117,6 +129,74 @@ function NewsletterSignup(){
 NewsletterSignup.prototype.save = function(cb){
 	cb();
 };
+
+
+//
+//API Routes
+//
+var Attraction = require('./models/attraction.js');
+
+app.get('/api/attractions', function(req,res){
+   Attraction.find({ approved: true }, function(err, attractions){
+       if(err) 
+           return res.status(500).send('error occurred: database error.');
+       
+       res.json(attractions.map(function(a){
+           return {
+               name: a.name,
+               id: a._id,
+               description: a.description,
+               location: a.location,
+           }
+       }));
+   }); 
+});
+
+app.post('/api/attraction', function(req,res){
+    
+    console.log('[' + req.originalUrl + ']'); 
+    console.log(req.body);
+    
+    var a = new Attraction({
+        name: req.body.name,
+        description: req.body.description,
+        location: {lat: req.body.lat, lng: req.body.lng },
+        history: {
+            event: 'created', 
+            email: req.body.email,
+            date: new Date(),
+        },
+        approved: false,
+    });
+    
+    a.save(function(err, a){
+        if(err) return res.status(500).send('Error occurred: databse error.');
+        res.json({ id: a._id });
+        
+    });
+});
+
+app.get('/api/attraction/:id', function(req,res){
+    
+    console.log('[' + req.originalUrl + ']');
+    
+    Attraction.findById(req.params.id, function(err, a){
+        if(err) {
+            console.log('[' + req.originalUrl + ']' + err);   
+            return res.status(500).send('Error occured: database error.');
+        }
+        
+        console.log( a ); 
+        res.json({
+            name: a.name,
+            id: a._id,
+            description: a.description,
+            location: a.location,
+        });
+        
+    })
+    
+});
 
 //
 //routes from here to the end of file.
@@ -258,6 +338,42 @@ app.get('/vacations', function(req,res){
         res.render('vacations', context);
     });
 });
+
+app.post('/cart/checkout', function(req, res){
+    var cart = req.session.cart;
+    if(!cart) 
+        next(new Error('Cart does not exist.'));
+    
+    var name = req.body.name || '', email = req.body.email || '';
+    
+    if(!email.match(VALID_EMAIL_REGEX))
+        return res.next(new Error('Invalid email address.'));
+    
+    //assign random cart ID; normally we would use a DB here....
+    cart.number = Math.random().toString().replace(/^0\.0/, "");
+    cart.billing = {
+        name: name,
+        email: email,
+    };
+    
+    res.render('email/cart-thank-you',
+       { layout: null, cart: cart}, function(err, html){
+            if( err ) console.log('error in email template');
+            mailTransport.sendMail({
+                from: '"Meadowlark Travel": info@meadowlarktravel.com', 
+                to: cart.billing.email,
+                subject: "Thank you for booking!",
+                html: html,
+                generateTextFromHtml: true
+            }, function(err){ 
+                    if(err) console.error('Unable to send confirmation: ' +err.stack); 
+            });
+        }
+    );
+    res.render('cart-thank-you', { cart: cart });
+                                                
+}); 
+
 
 //custom 404 page
 app.use(function(req,res){
