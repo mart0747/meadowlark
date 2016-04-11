@@ -24,7 +24,7 @@
     "restler": "^3.4.0"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha -u tdd -R spec qa/tests-api.js"
   },
   "repository": {
     "type": "git",
