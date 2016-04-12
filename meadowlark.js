@@ -54,7 +54,7 @@ Vacation.find(function(err, vacations){
         return console.error(err);
     
     
-    console.log(vacations.length + ' : number of vacations in DB');
+   // console.log(vacations.length + ' : number of vacations in DB');
     if(vacations.length) 
         return;
     
@@ -155,8 +155,8 @@ app.get('/api/attractions', function(req,res){
 
 app.post('/api/attraction', function(req,res){
     
-    console.log('[' + req.originalUrl + ']'); 
-    console.log(req.body);
+    //console.log('[' + req.originalUrl + ']'); 
+    //console.log(req.body);
     
     var a = new Attraction({
         name: req.body.name,
@@ -179,7 +179,7 @@ app.post('/api/attraction', function(req,res){
 
 app.get('/api/attraction/:id', function(req,res){
     
-    console.log('[' + req.originalUrl + ']');
+   // console.log('[' + req.originalUrl + ']');
     
     Attraction.findById(req.params.id, function(err, a){
         if(err) {
